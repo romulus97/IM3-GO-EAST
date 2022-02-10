@@ -14,7 +14,7 @@ import geopandas as gpd
 from shapely.geometry import Point, Polygon
 from matplotlib.colors import TwoSlopeNorm
 
-RTS = [300,275,250,225,200,175,150,125,100]
+RTS = [300,275,250,225,200,175,150,125,115]
 distance_threshold = 5
 
 df_BAs = pd.read_csv('BAs.csv',header=0,index_col=0)
@@ -368,9 +368,9 @@ for NN in RTS:
         
     # #specify number of nodes
     remaining_nodes = NN - len(demand_nodes_selected)
-    g_N = int(np.floor(remaining_nodes*.33)) #generation nodes
-    l_N = int(np.floor(remaining_nodes*.33)) #demand nodes
-    t_N = int(np.floor(remaining_nodes*.33)) #transmission nodes
+    g_N = int(np.floor(remaining_nodes*.50)) #generation nodes
+    l_N = int(np.floor(remaining_nodes*0)) #demand nodes
+    t_N = int(np.floor(remaining_nodes*.50)) #transmission nodes
     to_be_allocated_nodes = g_N + l_N + t_N
     if to_be_allocated_nodes < remaining_nodes:
         l_N += remaining_nodes - to_be_allocated_nodes
@@ -532,10 +532,11 @@ for NN in RTS:
     T_NODES.plot(ax=ax,color = 'limegreen',markersize=M,alpha=1,edgecolor='black',linewidth=0.3)   
     
     ax.set_box_aspect(1)
-    ax.set_xlim(-2000000,0)
-    ax.set_ylim([-1750000,750000])
+    ax.set_xlim(-1000000,2750000)
+    ax.set_ylim([-2000000,850000])
     plt.axis('off')
-    plt.savefig('draft_topology.jpg',dpi=330)
+    fname = 'draft_topology_' + str(NN) + '.jpg'
+    plt.savefig(fname,dpi=330)
      
     
     selected_nodes = demand_nodes_selected + gen_nodes_selected + trans_nodes_selected
