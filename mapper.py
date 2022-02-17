@@ -14,7 +14,7 @@ import geopandas as gpd
 from shapely.geometry import Point, Polygon
 from matplotlib.colors import TwoSlopeNorm
 
-RTS = [300,275,250,225,200,175,150,125,115]
+RTS = [300,275,250,225,200,175,150,125]
 distance_threshold = 5
 
 df_BAs = pd.read_csv('BAs.csv',header=0,index_col=0)
@@ -541,7 +541,7 @@ for NN in RTS:
     
     selected_nodes = demand_nodes_selected + gen_nodes_selected + trans_nodes_selected
     
-    df = pd.read_csv('Load_EIA.csv',header=0)
+    df = pd.read_csv('Buses_EIA.csv',header=0)
     full = list(df['Number'])
     
     excluded = [i for i in full if i not in selected_nodes]

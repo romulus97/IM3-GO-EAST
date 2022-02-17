@@ -25,8 +25,8 @@ df_full = pd.read_csv('nodes_to_BA_state.csv',header=0,index_col=0)
 BA_to_BA_transmission_data = pd.read_csv('BA_to_BA_transmission_limits.csv',header=0)
 all_BA_BA_connections = list(BA_to_BA_transmission_data['BA_to_BA'])
 
-# NODE_NUMBER = [75,100,125,150,175,200,225,250,275,300]
-NODE_NUMBER = [75]
+NODE_NUMBER = [75,100,125,150,175,200,225,250,275,300]
+# NODE_NUMBER = [75]
 
 # UC_TREATMENTS = ['_simple','_coal']
 UC_TREATMENTS = ['_simple']
