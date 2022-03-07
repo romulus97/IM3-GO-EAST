@@ -14,7 +14,7 @@ import geopandas as gpd
 from shapely.geometry import Point, Polygon
 from matplotlib.colors import TwoSlopeNorm
 
-RTS = [300,275,250,225,200,175,150,125]
+RTS = [500]
 distance_threshold = 5
 
 df_BAs = pd.read_csv('BAs.csv',header=0,index_col=0)
@@ -34,129 +34,94 @@ BAs_gdf = BAs_gdf.to_crs(epsg=2163)
 states_gdf = gpd.read_file('geo_export_9ef76f60-e019-451c-be6b-5a879a5e7c07.shp')
 states_gdf = states_gdf.to_crs(epsg=2163)
 
-# joined = gpd.sjoin(nodes_df,BAs_gdf,how='left',op='within')
-# joined2 = gpd.sjoin(nodes_df,states_gdf,how='left',op='within')
-# joined['State'] = joined2['state_name']
+joined = gpd.sjoin(nodes_df,BAs_gdf,how='left',op='within')
+joined2 = gpd.sjoin(nodes_df,states_gdf,how='left',op='within')
+joined['State'] = joined2['state_name']
 
-# buses = list(joined['Number'])
-# B = []
-# for b in buses:
-#     if b in B:
-#         pass
-#     else:
-#         B.append(b)
-        
-# #elimate redundant buses (overlapping BAs) based on peak load and 
-# #location within BAs
+buses = list(joined['Number'])
+B = []
+for b in buses:
+    if b in B:
+        pass
+    else:
+        B.append(b)
+    
+#elimate redundant buses (overlapping BAs) based on peak load and 
+#location within BAs
 
-# selected_BAs = []
+selected_BAs = []
 
-# for b in B:
-    
-#     sample = joined[joined['Number'] == b]
-#     sample = sample.reset_index(drop=True)
-    
-#     TELL_ok = []
-    
-#     if len(sample) > 1:
-        
-#         for i in range(0,len(sample)):
-#             if sample.loc[i,'NAME'] in BAs:
-#                 TELL_ok.append(i)
-        
-#         if len(TELL_ok)<1:
-            
-#             smallest = min(sample['SHAPE_Area'])
-#             selection = sample[sample['SHAPE_Area']==smallest]
-            
-#         else:
-            
-#             t = 0
-#             m = 100000000000000000000
-#             for i in range(0,len(TELL_ok)):
-#                 if sample.loc[TELL_ok[i],'NAME'] in selected_BAs:
-#                     if sample.loc[TELL_ok[i],'SHAPE_Area'] < m:
-#                         m = sample.loc[TELL_ok[i],'SHAPE_Area']
-#                 else:
-#                     t = 1
-#                     selection = sample.loc[TELL_ok[i],:]
-#                     selected_BAs.append(sample.loc[TELL_ok[i],'NAME'])
-#                     break 
-#             if t < 1:
-#                 selection = sample.loc[sample['SHAPE_Area']==m]
-            
-#     else:
-        
-#         selection = sample
-        
-#         if sample['NAME'][0] in selected_BAs:
-#             pass
-#         else:
-#             selected_BAs.append(sample['NAME'][0])
-        
-#     b_idx = B.index(b)
-#     print(b_idx)
-    
-#     if b_idx < 1:
-        
-#         combined = selection
-    
-#     else:
-        
-#         combined = combined.append(selection) 
-        
-        
-# # joined = gpd.sjoin(nodes_df,BAs_gdf,how='left',op='within')
-# # joined2 = gpd.sjoin(nodes_df,states_gdf,how='left',op='within')
-# # joined['State'] = joined2['state_name']
+for b in B:
 
-# # buses = list(joined['Number'])
-# # B = []
-# # for b in buses:
-# #     if b in B:
-# #         pass
-# #     else:
-# #         B.append(b)
-        
-# #elimate redundant buses (overlapping BAs) based on peak load
+    sample = joined[joined['Number'] == b]
+    sample = sample.reset_index(drop=True)
 
-# # for b in B:
-    
-# #     sample = joined[joined['Number'] == b]
-    
-# #     if len(sample) > 1:
-# #         smallest = min(sample['PEAK_LOAD'])
-# #         selection = sample[sample['PEAK_LOAD']==smallest]
-    
-# #     else:
-        
-# #         selection = sample
-        
-# #     b_idx = B.index(b)
-# #     print(b_idx)
-    
-# #     if b_idx < 1:
-        
-# #         combined = selection
-    
-# #     else:
-        
-# #         combined = combined.append(selection) 
-    
+    TELL_ok = []
 
-# ###########################################
-# # Remove any entry that is not in a TELL BA
-# combined = combined.reset_index(drop=True)
+    if len(sample) > 1:
+    
+        for i in range(0,len(sample)):
+            if sample.loc[i,'NAME'] in BAs:
+                TELL_ok.append(i)
+    
+        if len(TELL_ok)<1:
+        
+            smallest = min(sample['SHAPE_Area'])
+            selection = sample[sample['SHAPE_Area']==smallest]
+        
+        else:
+        
+            t = 0
+            m = 100000000000000000000
+            for i in range(0,len(TELL_ok)):
+                if sample.loc[TELL_ok[i],'NAME'] in selected_BAs:
+                    if sample.loc[TELL_ok[i],'SHAPE_Area'] < m:
+                        m = sample.loc[TELL_ok[i],'SHAPE_Area']
+                else:
+                    t = 1
+                    selection = sample.loc[TELL_ok[i],:]
+                    selected_BAs.append(sample.loc[TELL_ok[i],'NAME'])
+                    break 
+            if t < 1:
+                selection = sample.loc[sample['SHAPE_Area']==m]
+        
+    else:
+    
+        selection = sample
+    
+        if sample['NAME'][0] in selected_BAs:
+            pass
+        else:
+            selected_BAs.append(sample['NAME'][0])
+    
+    b_idx = B.index(b)
+    print(b_idx)
 
-# for i in range(0,len(combined)):
-#     a = combined.loc[i,'NAME']
-#     if a in BAs:
-#         pass
-#     else:
-#         combined = combined.drop([i])
+    if b_idx < 1:
+    
+        combined = selection
 
-# combined = combined.reset_index(drop=True)    
-# combined.to_csv('nodes_to_BA_state.csv')
+    else:
+    
+        combined = combined.append(selection) 
+       
+combined.to_csv('nodes_to_BA_state_original.csv')
+
+###########################################
+# Remove any entry that is not in a TELL BA
+combined = combined.reset_index(drop=True)
+count = 0
+
+for i in range(0,len(combined)):
+    a = combined.loc[i,'NAME']
+    if a in BAs:
+        pass
+    else:
+        combined = combined.drop([i])
+        count+=1
+
+combined = combined.reset_index(drop=True)    
+combined.to_csv('nodes_to_BA_state.csv')
 
 ##############################
 #  Generators

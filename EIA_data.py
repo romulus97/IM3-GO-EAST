@@ -41,13 +41,16 @@ for a in abbr:
     b = pd.read_excel(filename,header=0,sheet_name='Published Hourly Data')
     solar = b.loc[b['UTC time'].dt.year == 2019,'Adjusted SUN Gen']
     wind = b.loc[b['UTC time'].dt.year == 2019,'Adjusted WND Gen']
+    hydro = b.loc[b['UTC time'].dt.year == 2019,'Adjusted WAT Gen']
     
     if idx < 1:
         S = solar
         W = wind
+        H = hydro
     else:
         S = np.column_stack((S,solar))
         W = np.column_stack((W,wind))
+        H = np.column_stack((H,hydro))
 
 r,c = np.shape(S)
 for i in range(0,r):
@@ -66,3 +69,12 @@ for i in range(0,r):
 df_W = pd.DataFrame(W)
 df_W.columns = abbr
 df_W.to_csv('BA_wind.csv')
+
+r,c = np.shape(H)
+for i in range(0,r):
+    for j in range(0,c):
+        if H[i,j] < 0:
+            H[i,j] = 0
+df_H = pd.DataFrame(H)
+df_H.columns = abbr
+df_H.to_csv('BA_hydro.csv')

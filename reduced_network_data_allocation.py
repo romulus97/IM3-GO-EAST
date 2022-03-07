@@ -9,6 +9,7 @@ import pandas as pd
 import math
 import numpy as np
 import os
+import xlrd
 from shutil import copy
 from pathlib import Path
 
@@ -20,12 +21,20 @@ df_load = pd.read_csv('BA_load.csv',header=0)
 df_BAs = pd.read_csv('BAs.csv',header=0)
 BAs = list(df_BAs['Name'])
 
-df_full = pd.read_csv('nodes_to_BA_state.csv',header=0,index_col=0)
 
-BA_to_BA_transmission_data = pd.read_csv('BA_to_BA_transmission_limits.csv',header=0)
-all_BA_BA_connections = list(BA_to_BA_transmission_data['BA_to_BA'])
+df_full = pd.read_csv('nodes_to_BA_state_original.csv',header=0,index_col=0)
+df_full = df_full.reset_index(drop=True)
 
-NODE_NUMBER = [75,100,125,150,175,200,225,250,275,300]
+full_available = list(df_full['Number'])
+
+df_wind = pd.read_csv('BA_wind.csv',header=0,index_col=0)
+df_solar = pd.read_csv('BA_solar.csv',header=0,index_col=0)
+df_hydro = pd.read_csv('BA_hydro.csv',header=0,index_col=0)
+
+# BA_to_BA_transmission_data = pd.read_csv('BA_to_BA_transmission_limits.csv',header=0)
+# all_BA_BA_connections = list(BA_to_BA_transmission_data['BA_to_BA'])
+
+NODE_NUMBER = [500]
 # NODE_NUMBER = [75]
 
 # UC_TREATMENTS = ['_simple','_coal']
@@ -45,7 +54,7 @@ for NN in NODE_NUMBER:
             
             T_p = T_p/100
             
-            FN = 'Results_Excluded_Nodes_' + str(NN) + '.xlsx'
+            FN = 'Results_' + str(NN) + '.xlsx'
          
             # selected nodes
             df_selected = pd.read_excel(FN,sheet_name = 'Bus', header=0)
@@ -108,10 +117,7 @@ for NN in NODE_NUMBER:
             
             #############
             # GENERATORS
-            
-            df_wind = pd.read_csv('BA_wind.csv',header=0,index_col=0)
-            df_solar = pd.read_csv('BA_solar.csv',header=0,index_col=0)
-            
+                       
             #get rid of NaNs
             a = df_wind.values
             m=np.where(np.isnan(a))
@@ -123,10 +129,15 @@ for NN in NODE_NUMBER:
             r,c=np.shape(m)
             for i in range(0,c):
                 df_solar.iloc[m[0][i],m[1][i]] = 0    
+            a = df_hydro.values
+            m=np.where(np.isnan(a))
+            r,c=np.shape(m)
+            for i in range(0,c):
+                df_hydro.iloc[m[0][i],m[1][i]] = 0   
             
             # read reduction algorithm summary and parse nodal operations
-            df_summary = pd.read_excel(FN,sheet_name='Summary',header=5)
-            df_summary = df_summary.drop([len(df_summary)-1])
+            df_summary = pd.read_excel(FN,sheet_name='Summary',header=6)
+            # df_summary = df_summary.drop([len(df_summary)-1])
             nodes=0
             merged = {}
             N = []
@@ -146,15 +157,13 @@ for NN in NODE_NUMBER:
                         k.append(res[0])
                     else:
                         pass
+                    
                 merged[n] = k
             
             ##################################
             # WIND ALLOCATION FROM BA TO NODE
-            
-            #### NOTE: TAMU DATASET DOES NOT INCLUDE ANY WIND IN: LADWP OR PSCO; EIA VALUES
-            # FOR THESE BAs WERE MANUALLY ADDED TO CAISO AND WACM IN THE BA_wind.csv FILE.
-            
-            df_gen = pd.read_csv('10k_Gen.csv',header=0)
+                       
+            df_gen = pd.read_csv('Generators_EIA.csv',header=0)
             MWMax = []
             fuel_type = []
             nums = list(df_gen['BusNum'])
@@ -186,14 +195,16 @@ for NN in NODE_NUMBER:
             weights = []
             for i in range(0,len(df_full)):
                 area = df_full.loc[i,'NAME']
-                if str(area) == 'nan':
+                if str(area) in BAs:
+                    if str(df_full.loc[i,'FuelType']) != 'WND (Wind)':
+                        weights.append(0)
+                    else:
+                        X = float(df_BA_totals.loc[df_BA_totals['Name']==area,'Total'])
+                        W = df_full.loc[i,'MWMax']/X
+                        weights.append(W)
+                else:
                     weights.append(0)
-                elif str(df_full.loc[i,'FuelType']) != 'WND (Wind)':
-                    weights.append(0)
-                else:        
-                    X = float(df_BA_totals.loc[df_BA_totals['Name']==area,'Total'])
-                    W = df_full.loc[i,'MWMax']/X
-                    weights.append(W)
+                    
             df_full['BA Wind Weight'] = weights
             
             sums = []
@@ -209,7 +220,10 @@ for NN in NODE_NUMBER:
             w= 0
             T = np.zeros((8760,len(buses)))
             
-            BA_sums = np.zeros((28,1))
+            BA_sums = np.zeros((len(BAs),1))
+            BA_test = np.zeros((len(BAs),1))
+            
+            counter = 0
             
             for b in buses:
                 
@@ -217,9 +231,8 @@ for NN in NODE_NUMBER:
                 sample = df_full.loc[df_full['Number'] == b]
                 sample = sample.reset_index(drop=True)
                 name = sample['NAME'][0]
-            
                 
-                if str(name) != 'nan':
+                if str(name) in BAs:
             
                     abbr = df_BAs.loc[df_BAs['Name']==name,'Abbreviation'].values[0]
                     weight = sample['BA Wind Weight'].values[0]
@@ -227,6 +240,8 @@ for NN in NODE_NUMBER:
                     w += weight
                     dx = BAs.index(name)
                     BA_sums[dx] = BA_sums[dx] + weight
+                    BA_test[dx] += sum(df_wind[abbr].values*weight)
+                    counter+=1
                     
                 else:
                     pass
@@ -234,21 +249,23 @@ for NN in NODE_NUMBER:
                 #add wind capacity from merged nodes
                 try:
                     m_nodes = merged[b]
+                    counter+=len(m_nodes)
                     
                     for m in m_nodes:
-                        #load for original node
+                        
                         sample = df_full.loc[df_full['Number'] == m]
                         sample = sample.reset_index(drop=True)
                         name = sample['NAME'][0]
-                        if str(name) == 'nan':
-                            pass
-                        else:
+                        if str(name) in BAs:
                             abbr = df_BAs.loc[df_BAs['Name']==name,'Abbreviation'].values[0]
                             weight = sample['BA Wind Weight']
                             w += weight  
                             dx = BAs.index(name)
                             BA_sums[dx] = BA_sums[dx] + weight
+                            BA_test[dx] += sum(df_wind[abbr].values*weight.values[0])
                             T[:,idx] = T[:,idx] + np.reshape(df_wind[abbr].values*weight.values[0],(8760,))
+                        else:
+                            pass
             
                 except KeyError:
                     # print (b)
@@ -286,14 +303,16 @@ for NN in NODE_NUMBER:
             weights = []
             for i in range(0,len(df_full)):
                 area = df_full.loc[i,'NAME']
-                if str(area) == 'nan':
+                if str(area) in BAs:
+                    if str(df_full.loc[i,'FuelType']) != 'SUN (Solar)':
+                        weights.append(0)
+                    else:
+                        X = float(df_BA_totals.loc[df_BA_totals['Name']==area,'Total'])
+                        W = df_full.loc[i,'MWMax']/X
+                        weights.append(W)
+                else:  
                     weights.append(0)
-                elif str(df_full.loc[i,'FuelType']) != 'SUN (Solar)':
-                    weights.append(0)
-                else:        
-                    X = float(df_BA_totals.loc[df_BA_totals['Name']==area,'Total'])
-                    W = df_full.loc[i,'MWMax']/X
-                    weights.append(W)
+                    
             df_full['BA Solar Weight'] = weights
             
             sums = []
@@ -309,7 +328,8 @@ for NN in NODE_NUMBER:
             w= 0
             T = np.zeros((8760,len(buses)))
             
-            BA_sums = np.zeros((28,1))
+            BA_sums = np.zeros((len(BAs),1))
+            BA_test = np.zeros((len(BAs),1))
             
             for b in buses:
                 
@@ -319,7 +339,7 @@ for NN in NODE_NUMBER:
                 name = sample['NAME'][0]
             
                 
-                if str(name) != 'nan':
+                if str(name) in BAs:
             
                     abbr = df_BAs.loc[df_BAs['Name']==name,'Abbreviation'].values[0]
                     weight = sample['BA Solar Weight'].values[0]
@@ -327,6 +347,7 @@ for NN in NODE_NUMBER:
                     w += weight
                     dx = BAs.index(name)
                     BA_sums[dx] = BA_sums[dx] + weight
+                    BA_test[dx] += sum(df_solar[abbr].values*weight)
                     
                 else:
                     pass
@@ -340,15 +361,16 @@ for NN in NODE_NUMBER:
                         sample = df_full.loc[df_full['Number'] == m]
                         sample = sample.reset_index(drop=True)
                         name = sample['NAME'][0]
-                        if str(name) == 'nan':
-                            pass
-                        else:
+                        if str(name) in BAs:
                             abbr = df_BAs.loc[df_BAs['Name']==name,'Abbreviation'].values[0]
                             weight = sample['BA Solar Weight']
                             w += weight  
                             dx = BAs.index(name)
                             BA_sums[dx] = BA_sums[dx] + weight
+                            BA_test[dx] += sum(df_solar[abbr].values*weight.values[0])
                             T[:,idx] = T[:,idx] + np.reshape(df_solar[abbr].values*weight.values[0],(8760,))
+                        else:
+                            pass
             
                 except KeyError:
                     # print (b)
@@ -365,6 +387,105 @@ for NN in NODE_NUMBER:
             df_C.columns = s_buses
             df_C.to_csv('nodal_solar.csv',index=None)  
             copy('nodal_solar.csv',path)
+
+            ##################################
+            # HYDRO ALLOCATION FROM BA TO NODE
+            
+            BA_totals = []
+            
+            for b in BAs:
+                sample = list(df_full.loc[(df_full['NAME']==b) & (df_full['FuelType'] == 'WAT (Water)'),'MWMax'])
+                # corrected = [0 if math.isnan(x) else x for x in sample]
+                BA_totals.append(sum(sample))
+            
+            BA_totals = np.column_stack((BAs,BA_totals))
+            df_BA_totals = pd.DataFrame(BA_totals)
+            df_BA_totals.columns = ['Name','Total']
+            
+            weights = []
+            for i in range(0,len(df_full)):
+                area = df_full.loc[i,'NAME']
+                if str(area) in BAs:
+                    if str(df_full.loc[i,'FuelType']) != 'WAT (Water)':
+                        weights.append(0)
+                    else:    
+                        X = float(df_BA_totals.loc[df_BA_totals['Name']==area,'Total'])
+                        W = df_full.loc[i,'MWMax']/X
+                        weights.append(W)
+                else:
+                    weights.append(0)
+                        
+            df_full['BA Hydro Weight'] = weights
+            
+            sums = []
+            for i in BAs:
+                s = sum(df_full.loc[df_full['NAME']==i,'BA Hydro Weight'])
+                sums.append(s)
+            
+            # selected nodes
+            # df_selected = pd.read_csv('reduced_buses.csv',header=0)
+            buses = list(df_selected['bus_i'])
+            
+            idx = 0
+            w= 0
+            T = np.zeros((8760,len(buses)))
+            
+            BA_sums = np.zeros((len(BAs),1))
+            
+            for b in buses:
+                
+                #load for original node
+                sample = df_full.loc[df_full['Number'] == b]
+                sample = sample.reset_index(drop=True)
+                name = sample['NAME'][0]
+            
+                
+                if str(name) in BAs:
+            
+                    abbr = df_BAs.loc[df_BAs['Name']==name,'Abbreviation'].values[0]
+                    weight = sample['BA Hydro Weight'].values[0]
+                    T[:,idx] = T[:,idx] + np.reshape(df_hydro[abbr].values*weight,(8760,))
+                    w += weight
+                    dx = BAs.index(name)
+                    BA_sums[dx] = BA_sums[dx] + weight
+                    
+                else:
+                    pass
+                          
+                #add hydro capacity from merged nodes
+                try:
+                    m_nodes = merged[b]
+                    
+                    for m in m_nodes:
+                        #load for original node
+                        sample = df_full.loc[df_full['Number'] == m]
+                        sample = sample.reset_index(drop=True)
+                        name = sample['NAME'][0]
+                        if str(name) in BAs:
+                            abbr = df_BAs.loc[df_BAs['Name']==name,'Abbreviation'].values[0]
+                            weight = sample['BA Hydro Weight']
+                            w += weight  
+                            dx = BAs.index(name)
+                            BA_sums[dx] = BA_sums[dx] + weight
+                            T[:,idx] = T[:,idx] + np.reshape(df_hydro[abbr].values*weight.values[0],(8760,))
+                        else:
+                            pass
+            
+                except KeyError:
+                    # print (b)
+                    pass
+                
+                idx +=1
+                
+            
+            h_buses = []
+            for i in range(0,len(buses)):
+                h_buses.append('bus_' + str(buses[i]))
+            
+            df_C = pd.DataFrame(T)
+            df_C.columns = h_buses
+            df_C.to_csv('nodal_hydro.csv',index=None)  
+            copy('nodal_hydro.csv',path)
             
             
             ##############################
@@ -372,9 +493,9 @@ for NN in NODE_NUMBER:
             
             import re
             
-            df_gens = pd.read_csv('10k_Gen.csv',header=0)
+            df_gens = pd.read_csv('Generators_EIA.csv',header=0)
             df_gens = df_gens.replace('', np.nan, regex=True)
-            df_gens_heat_rate = pd.read_excel('NG_Coal_heat_rates.xlsx',header=0)
+            df_gens_heat_rate = pd.read_csv('Heat_rates_EIA.csv',header=0)
             old_bus_num =[]
             new_bus_num = []
             NB = []
@@ -434,7 +555,7 @@ for NN in NODE_NUMBER:
             nbs = []
             heat_rate = []
             f = []
-            thermal = ['NG (Natural Gas)','NUC (Nuclear)','BIT (Bituminous Coal)','NUC (Nuclear)']
+            thermal = ['NG (Natural Gas)','NUC (Nuclear)','BIT (Bituminous Coal)','DFO (Distillate Fuel Oil)']
             
             for n in NB:
                 sample = df_gens.loc[df_gens['NewBusNum'] == n]
@@ -474,86 +595,86 @@ for NN in NODE_NUMBER:
             copy('thermal_gens.csv',path)
                 
             
-            ##############################
-            # HYDROPOWER
+            # ##############################
+            # # HYDROPOWER
             
-            #EIA plants
-            df_hydro = pd.read_csv('EIA_302_WECC_hydro_plants.csv',header=0)
-            df_hydro_ts = pd.read_csv('p_mean_max_min_MW_WECC_302plants_weekly_2019.csv',header=0)
-            new_hydro_nodes = []
+            # #EIA plants
+            # df_hydro = pd.read_csv('EIA_302_WECC_hydro_plants.csv',header=0)
+            # df_hydro_ts = pd.read_csv('p_mean_max_min_MW_WECC_302plants_weekly_2019.csv',header=0)
+            # new_hydro_nodes = []
             
-            for i in range(0,len(df_hydro)):
+            # for i in range(0,len(df_hydro)):
                 
-                name = df_hydro.loc[i,'plant']
-                new_name = re.sub(r'[^A-Z]',r'',name)
-                bus = df_hydro.loc[i,'bus']
+            #     name = df_hydro.loc[i,'plant']
+            #     new_name = re.sub(r'[^A-Z]',r'',name)
+            #     bus = df_hydro.loc[i,'bus']
                 
-                if bus in old_bus_num:
-                    idx = old_bus_num.index(bus)
-                    new_hydro_nodes.append(new_bus_num[idx])
-                    pass
-                elif bus in buses:
-                    new_hydro_nodes.append(bus)
-                else:
-                    print(name + ' Not found')
+            #     if bus in old_bus_num:
+            #         idx = old_bus_num.index(bus)
+            #         new_hydro_nodes.append(new_bus_num[idx])
+            #         pass
+            #     elif bus in buses:
+            #         new_hydro_nodes.append(bus)
+            #     else:
+            #         print(name + ' Not found')
             
-            # add mean/min/max by node
-            H_min = np.zeros((52,len(buses)))
-            H_max = np.zeros((52,len(buses)))
-            H_mu = np.zeros((52,len(buses)))
+            # # add mean/min/max by node
+            # H_min = np.zeros((52,len(buses)))
+            # H_max = np.zeros((52,len(buses)))
+            # H_mu = np.zeros((52,len(buses)))
             
-            for i in range(0,len(df_hydro)):
-                b = new_hydro_nodes[i]
-                idx = buses.index(b)
-                plant = df_hydro.loc[i,'plant']
+            # for i in range(0,len(df_hydro)):
+            #     b = new_hydro_nodes[i]
+            #     idx = buses.index(b)
+            #     plant = df_hydro.loc[i,'plant']
                 
-                ts = df_hydro_ts[df_hydro_ts['plant']==plant]
+            #     ts = df_hydro_ts[df_hydro_ts['plant']==plant]
                 
-                H_min[:,idx] += ts['min']
-                H_max[:,idx] += ts['max']
-                H_mu[:,idx] += ts['mean']
+            #     H_min[:,idx] += ts['min']
+            #     H_max[:,idx] += ts['max']
+            #     H_mu[:,idx] += ts['mean']
                 
             
-            # create daily time series by node
-            H_min_hourly = np.zeros((365,len(buses)))
-            H_max_hourly = np.zeros((365,len(buses)))
-            H_mu_hourly = np.zeros((365,len(buses)))
+            # # create daily time series by node
+            # H_min_hourly = np.zeros((365,len(buses)))
+            # H_max_hourly = np.zeros((365,len(buses)))
+            # H_mu_hourly = np.zeros((365,len(buses)))
             
-            for i in range(0,len(H_min)):
-                for j in range(0,len(buses)):
-                    H_min_hourly[i*7:i*7+7,j] = H_min[i,j]
-                    H_max_hourly[i*7:i*7+7,j] = H_max[i,j]
-                    H_mu_hourly[i*7:i*7+7,j] = H_mu[i,j]*24
+            # for i in range(0,len(H_min)):
+            #     for j in range(0,len(buses)):
+            #         H_min_hourly[i*7:i*7+7,j] = H_min[i,j]
+            #         H_max_hourly[i*7:i*7+7,j] = H_max[i,j]
+            #         H_mu_hourly[i*7:i*7+7,j] = H_mu[i,j]*24
                     
-            H_min_hourly[364,:] = H_min_hourly[363,:]
-            H_max_hourly[364,:] = H_max_hourly[363,:]
-            H_mu_hourly[364,:] = H_mu_hourly[363,:] 
+            # H_min_hourly[364,:] = H_min_hourly[363,:]
+            # H_max_hourly[364,:] = H_max_hourly[363,:]
+            # H_mu_hourly[364,:] = H_mu_hourly[363,:] 
             
-            h_buses = []
-            for i in range(0,len(buses)):
-                h_buses.append('bus_' + str(buses[i]))
+            # h_buses = []
+            # for i in range(0,len(buses)):
+            #     h_buses.append('bus_' + str(buses[i]))
             
-            H_min_df = pd.DataFrame(H_min_hourly)
-            H_min_df.columns = h_buses
-            H_max_df = pd.DataFrame(H_max_hourly)
-            H_max_df.columns = h_buses
-            H_mu_df = pd.DataFrame(H_mu_hourly) 
-            H_mu_df.columns = h_buses       
+            # H_min_df = pd.DataFrame(H_min_hourly)
+            # H_min_df.columns = h_buses
+            # H_max_df = pd.DataFrame(H_max_hourly)
+            # H_max_df.columns = h_buses
+            # H_mu_df = pd.DataFrame(H_mu_hourly) 
+            # H_mu_df.columns = h_buses       
             
-            H_min_df.to_csv('Hydro_min.csv',index=None)
-            H_max_df.to_csv('Hydro_max.csv',index=None)
-            H_mu_df.to_csv('Hydro_total.csv',index=None)
+            # H_min_df.to_csv('Hydro_min.csv',index=None)
+            # H_max_df.to_csv('Hydro_max.csv',index=None)
+            # H_mu_df.to_csv('Hydro_total.csv',index=None)
             
-            copy('Hydro_min.csv',path)
-            copy('Hydro_max.csv',path)
-            copy('Hydro_total.csv',path)
+            # copy('Hydro_min.csv',path)
+            # copy('Hydro_max.csv',path)
+            # copy('Hydro_total.csv',path)
             
                 
             
             #########################################
             # Generator file setup
             
-            df_G = pd.read_csv('Thermal_Gens.csv',header=0)
+            df_G = pd.read_csv('thermal_gens.csv',header=0)
             
             names = []
             typs = []
@@ -666,7 +787,7 @@ for NN in NODE_NUMBER:
             
             # hydro
             
-            df_H = pd.read_csv('Hydro_max.csv',header=0)
+            df_H = pd.read_csv('nodal_hydro.csv',header=0)
             buses = list(df_H.columns)
             for n in buses:
                 if sum(df_H[n]) > 0:
@@ -878,51 +999,51 @@ for NN in NODE_NUMBER:
             df_line_params.to_csv('line_params.csv',index=None)
             copy('line_params.csv',path)
             
-            #Creating BA to BA transmission matrix for individual lines
-            exchange_columns = ['Exchange'] + lines
-            BA_to_BA_exhange_matrix = pd.DataFrame(np.zeros((len(all_BA_BA_connections),len(exchange_columns))),columns=exchange_columns,index=all_BA_BA_connections)
-            BA_to_BA_exhange_matrix.loc[:,'Exchange'] = all_BA_BA_connections
+            # #Creating BA to BA transmission matrix for individual lines
+            # exchange_columns = ['Exchange'] + lines
+            # BA_to_BA_exhange_matrix = pd.DataFrame(np.zeros((len(all_BA_BA_connections),len(exchange_columns))),columns=exchange_columns,index=all_BA_BA_connections)
+            # BA_to_BA_exhange_matrix.loc[:,'Exchange'] = all_BA_BA_connections
             
-            for i in all_BA_BA_connections:
+            # for i in all_BA_BA_connections:
                 
-                weight_count = 0
-                line_count = 0
+            #     weight_count = 0
+            #     line_count = 0
                 
-                splitted_str = i.split('_')
-                first_BA = splitted_str[0]
-                second_BA = splitted_str[1]
+            #     splitted_str = i.split('_')
+            #     first_BA = splitted_str[0]
+            #     second_BA = splitted_str[1]
                 
-                for j in lines:
+            #     for j in lines:
                                         
-                    splitted_line = j.split('_')
-                    BA_first_line = df_selected.loc[df_selected['bus_i']==int(splitted_line[1])]['BA'].values[0]
-                    first_BA_abb = df_BAs.loc[df_BAs['Name']==BA_first_line]['Abbreviation'].values[0]
+            #         splitted_line = j.split('_')
+            #         BA_first_line = df_selected.loc[df_selected['bus_i']==int(splitted_line[1])]['BA'].values[0]
+            #         first_BA_abb = df_BAs.loc[df_BAs['Name']==BA_first_line]['Abbreviation'].values[0]
                     
-                    a_bus = df_line_to_bus.loc[j,'bus_' + splitted_line[1]]
+            #         a_bus = df_line_to_bus.loc[j,'bus_' + splitted_line[1]]
                     
-                    BA_second_line = df_selected.loc[df_selected['bus_i']==int(splitted_line[2])]['BA'].values[0]
-                    second_BA_abb = df_BAs.loc[df_BAs['Name']==BA_second_line]['Abbreviation'].values[0]
+            #         BA_second_line = df_selected.loc[df_selected['bus_i']==int(splitted_line[2])]['BA'].values[0]
+            #         second_BA_abb = df_BAs.loc[df_BAs['Name']==BA_second_line]['Abbreviation'].values[0]
                     
-                    b_bus = df_line_to_bus.loc[j,'bus_' + splitted_line[2]]
+            #         b_bus = df_line_to_bus.loc[j,'bus_' + splitted_line[2]]
                     
-                    # print(a_bus + b_bus)
+            #         # print(a_bus + b_bus)
                     
-                    #if flow on that line means flow from first BA to second BA, write 1, if vice versa write -1
-                    if first_BA_abb == first_BA and second_BA_abb == second_BA:
-                        line_count += 1
-                        BA_to_BA_exhange_matrix.loc[i,j] = int(a_bus)
-                    elif first_BA_abb == second_BA and second_BA_abb == first_BA:
-                        BA_to_BA_exhange_matrix.loc[i,j] = int(b_bus)
-                        line_count += 1
-                    else:
-                        pass
+            #         #if flow on that line means flow from first BA to second BA, write 1, if vice versa write -1
+            #         if first_BA_abb == first_BA and second_BA_abb == second_BA:
+            #             line_count += 1
+            #             BA_to_BA_exhange_matrix.loc[i,j] = int(a_bus)
+            #         elif first_BA_abb == second_BA and second_BA_abb == first_BA:
+            #             BA_to_BA_exhange_matrix.loc[i,j] = int(b_bus)
+            #             line_count += 1
+            #         else:
+            #             pass
                     
-                    weight_count += int(BA_to_BA_exhange_matrix.loc[i,j])
+            #         weight_count += int(BA_to_BA_exhange_matrix.loc[i,j])
                     
             
-            BA_to_BA_exhange_matrix.to_csv('BA_to_BA_transmission_matrix.csv', index=False)
-            copy('BA_to_BA_transmission_matrix.csv',path)
-            copy('BA_to_BA_transmission_limits.csv',path)
+            # BA_to_BA_exhange_matrix.to_csv('BA_to_BA_transmission_matrix.csv', index=False)
+            # copy('BA_to_BA_transmission_matrix.csv',path)
+            # copy('BA_to_BA_transmission_limits.csv',path)
             
             #####################################
             # FUEL PRICES
@@ -952,6 +1073,20 @@ for NN in NODE_NUMBER:
             for bus in buses:
                 
                 selected_node_state = df_full.loc[df_full['Number']==bus,'STATE'].values[0]
+                
+                if selected_node_state == 'NB':
+                    selected_node_state = 'ME'
+                elif selected_node_state == 'CO':
+                    selected_node_state = 'KS'
+                elif selected_node_state == 'OR':
+                    selected_node_state = 'AR'
+                elif selected_node_state == 'TX':
+                    selected_node_state = 'OK'
+                elif selected_node_state == 'NM':
+                    selected_node_state = 'OK'
+                elif selected_node_state == 'MT':
+                    selected_node_state = 'SD'
+                    
                 specific_node_coal_price = Coal_price.loc[:,selected_node_state].copy()
                 
                 if buses.index(bus) == 0:
@@ -987,14 +1122,14 @@ for NN in NODE_NUMBER:
 
             #copy other files
             w = 'wrapper' + UC + '.py'
-            milp = 'WECC_MILP' + UC + '.py'
-            lp = 'WECC_LP' + UC + '.py'
+            milp = 'EIC_MILP' + UC + '.py'
+            lp = 'EIC_LP' + UC + '.py'
             
             copy(w,path)
-            copy('WECCDataSetup.py',path)
+            copy('EICDataSetup.py',path)
             
             if UC == '_simple':
-                copy('WECC' + UC + '.py',path)
+                copy('EIC' + UC + '.py',path)
             else:          
                 copy(milp,path)
                 copy(lp,path)
