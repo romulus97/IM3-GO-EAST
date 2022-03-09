@@ -17,7 +17,7 @@ from pathlib import Path
 # LOAD ALLOCATION FROM BALANCING AUTHORITY to NODES
 ########################################
 
-df_load = pd.read_csv('BA_load.csv',header=0)
+df_load = pd.read_csv('BA_load_corrected.csv',header=0, index_col=0)
 df_BAs = pd.read_csv('BAs.csv',header=0)
 BAs = list(df_BAs['Name'])
 
@@ -28,8 +28,8 @@ df_full = df_full.reset_index(drop=True)
 full_available = list(df_full['Number'])
 
 df_wind = pd.read_csv('BA_wind.csv',header=0,index_col=0)
-df_solar = pd.read_csv('BA_solar.csv',header=0,index_col=0)
-df_hydro = pd.read_csv('BA_hydro.csv',header=0,index_col=0)
+df_solar = pd.read_csv('BA_solar_corrected.csv',header=0,index_col=0)
+df_hydro = pd.read_csv('BA_hydro_corrected.csv',header=0,index_col=0)
 
 # BA_to_BA_transmission_data = pd.read_csv('BA_to_BA_transmission_limits.csv',header=0)
 # all_BA_BA_connections = list(BA_to_BA_transmission_data['BA_to_BA'])
@@ -101,14 +101,18 @@ for NN in NODE_NUMBER:
                 #load for original node
                 name = df_selected.loc[i,'BA']
                 
-                abbr = df_BAs.loc[df_BAs['Name']==name,'Abbreviation'].values[0]
-                weight = df_selected.loc[i,'BA Load Weight']
-                # T[:,i] = T[:,i] + np.reshape(df_load[abbr].values*weight,(8760,))
-                if max(df_load[abbr]) < 1:
-                    T[:,i] = T[:,i] + np.reshape(df_load[abbr].values,(8760,))                    
-                else:                    
-                    T[:,i] = T[:,i] + np.reshape(df_load[abbr].values*weight,(8760,))*(float(df_BA_totals.loc[df_BA_totals['Name']==name,'Total'])/max(df_load[abbr]))  
-            
+                if float(df_BA_totals.loc[df_BA_totals['Name']==str(name),'Total'].values[0]) < 1:
+                    pass
+                else: 
+                
+                    abbr = df_BAs.loc[df_BAs['Name']==name,'Abbreviation'].values[0]
+                    weight = df_selected.loc[i,'BA Load Weight']
+                    # T[:,i] = T[:,i] + np.reshape(df_load[abbr].values*weight,(8760,))
+                    if max(df_load[abbr]) < 1:
+                        T[:,i] = T[:,i] + np.reshape(df_load[abbr].values,(8760,))                    
+                    else:                    
+                        T[:,i] = T[:,i] + np.reshape(df_load[abbr].values*weight,(8760,))*(float(df_BA_totals.loc[df_BA_totals['Name']==name,'Total'])/max(df_load[abbr]))  
+                
             for i in range(0,len(buses)):
                 buses[i] = 'bus_' + str(buses[i])
             
@@ -236,15 +240,18 @@ for NN in NODE_NUMBER:
                 name = sample['NAME'][0]
                 
                 if str(name) in BAs:
-            
-                    abbr = df_BAs.loc[df_BAs['Name']==name,'Abbreviation'].values[0]
-                    weight = sample['BA Wind Weight'].values[0]
-                    T[:,idx] = T[:,idx] + np.reshape(df_wind[abbr].values*weight,(8760,))
-                    w += weight
-                    dx = BAs.index(name)
-                    BA_sums[dx] = BA_sums[dx] + weight
-                    BA_test[dx] += sum(df_wind[abbr].values*weight)
-                    counter+=1
+                    
+                    if float(df_BA_totals.loc[df_BA_totals['Name']==str(name),'Total'].values[0]) < 1:
+                        pass
+                    else:
+                        abbr = df_BAs.loc[df_BAs['Name']==name,'Abbreviation'].values[0]
+                        weight = sample['BA Wind Weight'].values[0]
+                        T[:,idx] = T[:,idx] + np.reshape(df_wind[abbr].values*weight,(8760,))
+                        w += weight
+                        dx = BAs.index(name)
+                        BA_sums[dx] = BA_sums[dx] + weight
+                        BA_test[dx] += sum(df_wind[abbr].values*weight)
+                        counter+=1
                     
                 else:
                     pass
@@ -260,13 +267,17 @@ for NN in NODE_NUMBER:
                         sample = sample.reset_index(drop=True)
                         name = sample['NAME'][0]
                         if str(name) in BAs:
-                            abbr = df_BAs.loc[df_BAs['Name']==name,'Abbreviation'].values[0]
-                            weight = sample['BA Wind Weight']
-                            w += weight  
-                            dx = BAs.index(name)
-                            BA_sums[dx] = BA_sums[dx] + weight
-                            BA_test[dx] += sum(df_wind[abbr].values*weight.values[0])
-                            T[:,idx] = T[:,idx] + np.reshape(df_wind[abbr].values*weight.values[0],(8760,))
+                            
+                            if float(df_BA_totals.loc[df_BA_totals['Name']==str(name),'Total'].values[0]) < 1:
+                                pass
+                            else:
+                                abbr = df_BAs.loc[df_BAs['Name']==name,'Abbreviation'].values[0]
+                                weight = sample['BA Wind Weight']
+                                w += weight  
+                                dx = BAs.index(name)
+                                BA_sums[dx] = BA_sums[dx] + weight
+                                BA_test[dx] += sum(df_wind[abbr].values*weight.values[0])
+                                T[:,idx] = T[:,idx] + np.reshape(df_wind[abbr].values*weight.values[0],(8760,))
                         else:
                             pass
             
@@ -343,14 +354,18 @@ for NN in NODE_NUMBER:
             
                 
                 if str(name) in BAs:
+                    
+                    if float(df_BA_totals.loc[df_BA_totals['Name']==str(name),'Total'].values[0]) < 1:
+                        pass
+                    else:
             
-                    abbr = df_BAs.loc[df_BAs['Name']==name,'Abbreviation'].values[0]
-                    weight = sample['BA Solar Weight'].values[0]
-                    T[:,idx] = T[:,idx] + np.reshape(df_solar[abbr].values*weight,(8760,))
-                    w += weight
-                    dx = BAs.index(name)
-                    BA_sums[dx] = BA_sums[dx] + weight
-                    BA_test[dx] += sum(df_solar[abbr].values*weight)
+                        abbr = df_BAs.loc[df_BAs['Name']==name,'Abbreviation'].values[0]
+                        weight = sample['BA Solar Weight'].values[0]
+                        T[:,idx] = T[:,idx] + np.reshape(df_solar[abbr].values*weight,(8760,))
+                        w += weight
+                        dx = BAs.index(name)
+                        BA_sums[dx] = BA_sums[dx] + weight
+                        BA_test[dx] += sum(df_solar[abbr].values*weight)
                     
                 else:
                     pass
@@ -365,13 +380,16 @@ for NN in NODE_NUMBER:
                         sample = sample.reset_index(drop=True)
                         name = sample['NAME'][0]
                         if str(name) in BAs:
-                            abbr = df_BAs.loc[df_BAs['Name']==name,'Abbreviation'].values[0]
-                            weight = sample['BA Solar Weight']
-                            w += weight  
-                            dx = BAs.index(name)
-                            BA_sums[dx] = BA_sums[dx] + weight
-                            BA_test[dx] += sum(df_solar[abbr].values*weight.values[0])
-                            T[:,idx] = T[:,idx] + np.reshape(df_solar[abbr].values*weight.values[0],(8760,))
+                            if float(df_BA_totals.loc[df_BA_totals['Name']==str(name),'Total'].values[0]) < 1:
+                                pass
+                            else:
+                                abbr = df_BAs.loc[df_BAs['Name']==name,'Abbreviation'].values[0]
+                                weight = sample['BA Solar Weight']
+                                w += weight  
+                                dx = BAs.index(name)
+                                BA_sums[dx] = BA_sums[dx] + weight
+                                BA_test[dx] += sum(df_solar[abbr].values*weight.values[0])
+                                T[:,idx] = T[:,idx] + np.reshape(df_solar[abbr].values*weight.values[0],(8760,))
                         else:
                             pass
             
@@ -444,13 +462,15 @@ for NN in NODE_NUMBER:
             
                 
                 if str(name) in BAs:
-            
-                    abbr = df_BAs.loc[df_BAs['Name']==name,'Abbreviation'].values[0]
-                    weight = sample['BA Hydro Weight'].values[0]
-                    T[:,idx] = T[:,idx] + np.reshape(df_hydro[abbr].values*weight,(8760,))
-                    w += weight
-                    dx = BAs.index(name)
-                    BA_sums[dx] = BA_sums[dx] + weight
+                    if float(df_BA_totals.loc[df_BA_totals['Name']==str(name),'Total'].values[0]) < 1:
+                        pass
+                    else:
+                        abbr = df_BAs.loc[df_BAs['Name']==name,'Abbreviation'].values[0]
+                        weight = sample['BA Hydro Weight'].values[0]
+                        T[:,idx] = T[:,idx] + np.reshape(df_hydro[abbr].values*weight,(8760,))
+                        w += weight
+                        dx = BAs.index(name)
+                        BA_sums[dx] = BA_sums[dx] + weight
                     
                 else:
                     pass
@@ -465,12 +485,15 @@ for NN in NODE_NUMBER:
                         sample = sample.reset_index(drop=True)
                         name = sample['NAME'][0]
                         if str(name) in BAs:
-                            abbr = df_BAs.loc[df_BAs['Name']==name,'Abbreviation'].values[0]
-                            weight = sample['BA Hydro Weight']
-                            w += weight  
-                            dx = BAs.index(name)
-                            BA_sums[dx] = BA_sums[dx] + weight
-                            T[:,idx] = T[:,idx] + np.reshape(df_hydro[abbr].values*weight.values[0],(8760,))
+                            if float(df_BA_totals.loc[df_BA_totals['Name']==str(name),'Total'].values[0]) < 1:
+                                pass
+                            else:
+                                abbr = df_BAs.loc[df_BAs['Name']==name,'Abbreviation'].values[0]
+                                weight = sample['BA Hydro Weight']
+                                w += weight  
+                                dx = BAs.index(name)
+                                BA_sums[dx] = BA_sums[dx] + weight
+                                T[:,idx] = T[:,idx] + np.reshape(df_hydro[abbr].values*weight.values[0],(8760,))
                         else:
                             pass
             
