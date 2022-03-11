@@ -100,6 +100,8 @@ for NN in NODE_NUMBER:
                     
                 #load for original node
                 name = df_selected.loc[i,'BA']
+                if name == 'WESTERN AREA POWER ADMINISTRATION UGP WEST':
+                    print(i)
                 
                 if float(df_BA_totals.loc[df_BA_totals['Name']==str(name),'Total'].values[0]) < 1:
                     pass
@@ -111,7 +113,7 @@ for NN in NODE_NUMBER:
                     if max(df_load[abbr]) < 1:
                         T[:,i] = T[:,i] + np.reshape(df_load[abbr].values,(8760,))                    
                     else:                    
-                        T[:,i] = T[:,i] + np.reshape(df_load[abbr].values*weight,(8760,))*(float(df_BA_totals.loc[df_BA_totals['Name']==name,'Total'])/max(df_load[abbr]))  
+                        T[:,i] = T[:,i] + np.reshape(df_load[abbr].values*weight,(8760,)) 
                 
             for i in range(0,len(buses)):
                 buses[i] = 'bus_' + str(buses[i])
