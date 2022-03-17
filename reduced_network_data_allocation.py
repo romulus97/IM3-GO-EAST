@@ -101,7 +101,6 @@ for NN in NODE_NUMBER:
                 #load for original node
                 name = df_selected.loc[i,'BA']
                 if name == 'WESTERN AREA POWER ADMINISTRATION UGP WEST':
-                    print(i)
                 
                 if float(df_BA_totals.loc[df_BA_totals['Name']==str(name),'Total'].values[0]) < 1:
                     pass
