@@ -16,7 +16,7 @@ HorizonHours = 24  ##planning horizon (e.g., 24, 48, 72 hours etc.)
 # res_margin = 0.15  ##minimum reserve as a percent of system demand
 # spin_margin = 0.50 ##minimum spinning reserve as a percent of total reserve
 
-data_name = 'WECC_data'
+data_name = 'EIC_data'
 
 
 ######=================================================########
@@ -32,22 +32,22 @@ df_linetobusmap = pd.read_csv('line_to_bus.csv',header=0)
 df_line_params = pd.read_csv('line_params.csv',header=0)
 lines = list(df_line_params['line'])
 
-##daily ts of hydro at nodal-level
-df_hydro_MAX = pd.read_csv('Hydro_max.csv',header=0)
-df_hydro_MIN = pd.read_csv('Hydro_min.csv',header=0)
-df_hydro_TOTAL = pd.read_csv('Hydro_total.csv',header=0)
+# ##daily ts of hydro at nodal-level
+# df_hydro_MAX = pd.read_csv('Hydro_max.csv',header=0)
+# df_hydro_MIN = pd.read_csv('Hydro_min.csv',header=0)
+# df_hydro_TOTAL = pd.read_csv('Hydro_total.csv',header=0)
 
-empty = []
-sites = list(df_hydro_MAX.columns)
-for i in sites:
-    if sum(df_hydro_MAX[i]) > 0:
-        pass
-    else:
-        empty.append(i)
+# empty = []
+# sites = list(df_hydro_MAX.columns)
+# for i in sites:
+#     if sum(df_hydro_MAX[i]) > 0:
+#         pass
+#     else:
+#         empty.append(i)
 
-df_hydro_MAX = df_hydro_MAX.drop(columns=empty)
-df_hydro_MIN = df_hydro_MIN.drop(columns=empty)
-df_hydro_TOTAL = df_hydro_TOTAL.drop(columns=empty)
+# df_hydro_MAX = df_hydro_MAX.drop(columns=empty)
+# df_hydro_MIN = df_hydro_MIN.drop(columns=empty)
+# df_hydro_TOTAL = df_hydro_TOTAL.drop(columns=empty)
 
 
 ##hourly ts of dispatchable solar-power at each plant
@@ -77,6 +77,20 @@ for i in sites:
 
 df_wind = df_wind.drop(columns=empty)
 
+##
+##hourly ts of dispatchable hydro-power at each plant
+df_hydro = pd.read_csv('nodal_hydro.csv',header=0)
+
+empty = []
+sites = list(df_hydro.columns)
+for i in sites:
+    if sum(df_hydro[i]) > 0:
+        pass
+    else:
+        empty.append(i)
+
+df_hydro = df_hydro.drop(columns=empty)
+
 ##hourly ts of load at substation-level
 df_load = pd.read_csv('nodal_load.csv',header=0) 
 
@@ -90,10 +104,10 @@ h3 = df_must.columns
 ## Fuel prices at substation-level
 df_fuel = pd.read_csv('Fuel_prices.csv',header=0)
 
-#BA to BA transmission limit data
-BA_to_BA_transmission_data = pd.read_csv('BA_to_BA_transmission_limits.csv',header=0)
-all_BA_BA_connections = list(BA_to_BA_transmission_data['BA_to_BA'])
-BA_to_BA_transmission_matrix = pd.read_csv('BA_to_BA_transmission_matrix.csv',header=0)
+# #BA to BA transmission limit data
+# BA_to_BA_transmission_data = pd.read_csv('BA_to_BA_transmission_limits.csv',header=0)
+# all_BA_BA_connections = list(BA_to_BA_transmission_data['BA_to_BA'])
+# BA_to_BA_transmission_matrix = pd.read_csv('BA_to_BA_transmission_matrix.csv',header=0)
 
 
 ######=================================================########
@@ -205,10 +219,10 @@ with open(''+str(data_name)+'.dat', 'w') as f:
     print('lines')
     
     #BA to BA exchange limit
-    f.write('set exchanges :=\n')
-    for z in all_BA_BA_connections:
-        f.write(z + ' ')
-    f.write(';\n\n')
+    # f.write('set exchanges :=\n')
+    # for z in all_BA_BA_connections:
+    #     f.write(z + ' ')
+    # f.write(';\n\n')
     
     
 ######=================================================########
@@ -268,12 +282,12 @@ with open(''+str(data_name)+'.dat', 'w') as f:
 
     print('trans paths')
     
-    #BA to BA exchange limits
-    f.write('param:' + '\t' +'ExchangeLimit :=' + '\n')
-    for z in all_BA_BA_connections:
-        idx = all_BA_BA_connections.index(z)
-        f.write(z + '\t' + str(BA_to_BA_transmission_data.loc[idx,'Limit_MW']) + '\n')
-    f.write(';\n\n')
+    # #BA to BA exchange limits
+    # f.write('param:' + '\t' +'ExchangeLimit :=' + '\n')
+    # for z in all_BA_BA_connections:
+    #     idx = all_BA_BA_connections.index(z)
+    #     f.write(z + '\t' + str(BA_to_BA_transmission_data.loc[idx,'Limit_MW']) + '\n')
+    # f.write(';\n\n')
     
     
 ######=================================================########
@@ -310,34 +324,15 @@ with open(''+str(data_name)+'.dat', 'w') as f:
     
     print('wind')
     
-    # hydro (daily)
-    f.write('param:' + '\t' + 'SimHydro_MAX:=' + '\n')
-    h_gens = df_hydro_MAX.columns      
-    for z in h_gens:
-        for h in range(0,len(df_hydro_MAX)): 
-        # for h in range(0,240):
-            f.write(z + '_HYDRO' + '\t' + str(h+1) + '\t' + str(df_hydro_MAX.loc[h,z]) + '\n')
-    f.write(';\n\n')
-
-    # hydro (daily)
-    f.write('param:' + '\t' + 'SimHydro_MIN:=' + '\n')
-    h_gens = df_hydro_MIN.columns      
-    for z in h_gens:
-        for h in range(0,len(df_hydro_MIN)): 
-        # for h in range(0,240):
-            f.write(z + '_HYDRO' + '\t' + str(h+1) + '\t' + str(df_hydro_MIN.loc[h,z]) + '\n')
-    f.write(';\n\n')
-    
-    # hydro (daily)
-    f.write('param:' + '\t' + 'SimHydro_TOTAL:=' + '\n')
-    h_gens = df_hydro_TOTAL.columns      
-    for z in h_gens:
-        for h in range(0,len(df_hydro_MAX)): 
-        # for h in range(0,240):
-            f.write(z + '_HYDRO' + '\t' + str(h+1) + '\t' + str(df_hydro_TOTAL.loc[h,z]) + '\n')
+    f.write('param:' + '\t' + 'Simhydro:=' + '\n')
+    w_gens = df_hydro.columns
+    for z in w_gens:
+        for h in range(0,len(df_hydro)):
+            f.write(z + '_hydro' + '\t' + str(h+1) + '\t' + str(df_hydro.loc[h,z]) + '\n')
     f.write(';\n\n')
     
     print('hydro')
+    
 
 ####### Nodal must run
      
@@ -349,20 +344,7 @@ with open(''+str(data_name)+'.dat', 'w') as f:
             f.write(z + '\t' + str(0) + '\n')
     f.write(';\n\n')
     
-    
-##    # solar (hourly)
-##    f.write('param:' + '\t' + 'SimSolar:=' + '\n')      
-##    for z in s_nodes:
-##        for h in range(0,len(df_solar)): 
-##            f.write(z + '\t' + str(h+1) + '\t' + str(df_solar.loc[h,z]) + '\n')
-##    f.write(';\n\n')
-##
-##    # wind (hourly)
-##    f.write('param:' + '\t' + 'SimWind:=' + '\n')      
-##    for z in w_nodes:
-##        for h in range(0,len(df_wind)): 
-##            f.write(z + '\t' + str(h+1) + '\t' + str(df_wind.loc[h,z]) + '\n')
-##    f.write(';\n\n')
+
     
 ###### System-wide hourly reserve
     # f.write('param' + '\t' + 'SimReserves:=' + '\n')
@@ -407,19 +389,6 @@ with open(''+str(data_name)+'.dat', 'w') as f:
     
     print('line to bus')
     
-    #BA to BA exchange matrix
-    f.write('param ExchangeMap:' +'\n')
-    f.write('\t')
-
-    for j in BA_to_BA_transmission_matrix.columns:
-        if j!= 'Exchange':
-            f.write(j + '\t')
-    f.write(':=' + '\n')
-    for i in range(0,len(BA_to_BA_transmission_matrix)):   
-        for j in BA_to_BA_transmission_matrix.columns:
-            f.write(str(BA_to_BA_transmission_matrix.loc[i,j]) + '\t')
-        f.write('\n')
-    f.write(';\n\n')
     
 ######=================================================########
 ######               Segment A.10                       ########
