@@ -6,7 +6,7 @@ Created on Tue Jun 20 22:14:07 2017
 """
 
 from pyomo.opt import SolverFactory
-from WECC_simple import model as m1
+from EIC_simple import model as m1
 from pyomo.core import Var
 from pyomo.core import Constraint
 from pyomo.core import Param
@@ -19,7 +19,7 @@ from pyomo.environ import value
 
 days = 365 # Max = 365
 
-instance = m1.create_instance('WECC_data.dat')
+instance = m1.create_instance('EIC_data.dat')
 instance.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT)
 
 Solvername = 'gurobi'
@@ -64,9 +64,8 @@ for day in range(1,days+1):
 
     for z in instance.Hydro:
     #load Hydropower time series data
-        instance.HorizonHydro_MAX[z] = instance.SimHydro_MAX[z,day]
-        instance.HorizonHydro_MIN[z] = instance.SimHydro_MIN[z,day]
-        instance.HorizonHydro_TOTAL[z] = instance.SimHydro_TOTAL[z,day]
+        instance.HorizonHydro[z] = instance.SimHydro[z,day]
+
         
     for z in instance.Solar:
     #load Solar time series data
