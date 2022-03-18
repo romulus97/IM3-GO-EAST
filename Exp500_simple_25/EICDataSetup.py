@@ -324,7 +324,7 @@ with open(''+str(data_name)+'.dat', 'w') as f:
     
     print('wind')
     
-    f.write('param:' + '\t' + 'Simhydro:=' + '\n')
+    f.write('param:' + '\t' + 'SimHydro:=' + '\n')
     w_gens = df_hydro.columns
     for z in w_gens:
         for h in range(0,len(df_hydro)):
