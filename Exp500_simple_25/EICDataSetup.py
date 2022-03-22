@@ -328,7 +328,7 @@ with open(''+str(data_name)+'.dat', 'w') as f:
     w_gens = df_hydro.columns
     for z in w_gens:
         for h in range(0,len(df_hydro)):
-            f.write(z + '_hydro' + '\t' + str(h+1) + '\t' + str(df_hydro.loc[h,z]) + '\n')
+            f.write(z + '_HYDRO' + '\t' + str(h+1) + '\t' + str(df_hydro.loc[h,z]) + '\n')
     f.write(';\n\n')
     
     print('hydro')
