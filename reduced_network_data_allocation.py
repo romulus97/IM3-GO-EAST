@@ -726,6 +726,8 @@ for NN in NODE_NUMBER:
                     typ = 'ngcc'
                 elif t == 'BIT (Bituminous Coal)':
                     typ = 'coal'
+                elif t == 'DFO (Distillate Fuel Oil)':
+                    typ = 'oil'
                 else:
                     typ = 'nuclear'
                 node = 'bus_' + str(df_G.loc[i,'Bus'])
@@ -737,6 +739,11 @@ for NN in NODE_NUMBER:
                     var_om = 3
                     minup = 4
                     mindn = 4
+                    ramp = maxcap
+                if typ == 'oil':
+                    var_om = 8
+                    minup = 1
+                    mindn = 1
                     ramp = maxcap
                 else:
                     var_om = 4
@@ -1122,9 +1129,13 @@ for NN in NODE_NUMBER:
             
             Coal_prices_all.columns = Fuel_buses
             
+            Oil_prices = np.reshape(np.ones((365,1))*20,(365,))
+            Oil_prices_all = pd.DataFrame()
+            Oil_prices_all['all'] = Oil_prices
+            
             # getting generator based fuel prices
             
-            thermal_gens_info = df_genparams.loc[(df_genparams['typ']=='ngcc') | (df_genparams['typ']=='coal')].copy()
+            thermal_gens_info = df_genparams.loc[(df_genparams['typ']=='ngcc') | (df_genparams['typ']=='coal') | (df_genparams['typ']=='oil')].copy()
             thermal_gens_names = [*thermal_gens_info['name']]
             
             for ind, row in thermal_gens_info.iterrows():
@@ -1133,6 +1144,8 @@ for NN in NODE_NUMBER:
                     gen_fuel_price = NG_prices_all.loc[:, row['node']].copy() 
                 elif row['typ'] == 'coal':
                     gen_fuel_price = Coal_prices_all.loc[:, row['node']].copy() 
+                elif row['typ'] == 'oil':
+                    gen_fuel_price = Oil_prices_all.loc[:,'all'].copy()
                 else:
                     pass
                 
