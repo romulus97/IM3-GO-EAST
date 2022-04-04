@@ -740,7 +740,7 @@ for NN in NODE_NUMBER:
                     minup = 4
                     mindn = 4
                     ramp = maxcap
-                if typ == 'oil':
+                elif typ == 'oil':
                     var_om = 8
                     minup = 1
                     mindn = 1
