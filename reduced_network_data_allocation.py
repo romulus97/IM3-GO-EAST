@@ -955,7 +955,7 @@ for NN in NODE_NUMBER:
             for i in range(0,len(all_nodes)):
                 tot_cap[i] = sum(gens_cap*df_gen_mat.iloc[:,i+1])
                 oil_cap[i] = sum(gens_cap*df_A.iloc[:,i])
-                oil_max[i] = sum(gens_cap)
+                oil_max[i] = sum(gens_cap*df_A.iloc[:,i])
                 oil_hr[i] = sum(gens_hr*(gens_cap*df_A.iloc[:,i])/sum(gens_cap*df_A.iloc[:,i]))
                 oil_min[i] = sum(gens_min*(gens_cap*df_A.iloc[:,i])/sum(gens_cap*df_A.iloc[:,i]))
                 oil_var_om[i] = sum(gens_var_om*(gens_cap*df_A.iloc[:,i])/sum(gens_cap*df_A.iloc[:,i]))
@@ -991,6 +991,7 @@ for NN in NODE_NUMBER:
             df = df.loc[df['typ'] != 'oil']
             df = pd.concat([df, df_oil], ignore_index=True)
             df.to_csv('data_genparams.csv',index=None)
+            copy('data_genparams.csv',path)
             
             
             ##### Recreate Generator to Bus matrix
@@ -1209,6 +1210,8 @@ for NN in NODE_NUMBER:
             
             #####################################
             # FUEL PRICES
+            
+            df_genparams = pd.read_csv('data_genparams.csv',header=0)
             
             # Natural gas prices
             NG_price = pd.read_csv('NG_price/Average_NG_prices_BAs.csv', header=0)
