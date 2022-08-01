@@ -559,46 +559,55 @@ for NN in NODE_NUMBER:
             names = list(df_gens['BusName'])
             fts = list(df_gens['FuelType'])
             names_hr = list(df_gens_heat_rate['BusName'])
+            fts_hr = list(df_gens_heat_rate['BusName'])
+            bus_area = list(df_gens['BusAreaName'])
+            bus_area_hr = list(df_gens_heat_rate['AreaName'])
             
             # remove numbers and spaces
             for n in names:
                 i = names.index(n)
                 corrected = re.sub(r'[^A-Z]',r'',n)
                 f = fts[i]
+                bn = bus_area[i]
                 if f == 'NUC (Nuclear)':
                     f = 'Nuc'
                 elif f == 'NG (Natural Gas)':
                     f = 'NG'
                 elif f == 'BIT (Bituminous Coal)':
-                    f = 'NG'
+                    f = 'C'
                 elif f == 'SUN (Solar)':
                     f = 'S'
                 elif f == 'WAT (Water)':
                     f = 'H'
                 elif f == 'WND (Wind)':
                     f = 'W'
+                elif f == 'DFO (Distillate Fuel Oil)':
+                    f = 'O'
                     
-                corrected = corrected + '_' + f
+                corrected = corrected + '_' + f + '_' + bn
                 names[i] = corrected
                 
             for n in names_hr:
                 i = names_hr.index(n)
                 corrected = re.sub(r'[^A-Z]',r'',n)
-                f = fts[i]
+                f = fts_hr[i]
+                bn = bus_area_hr[i]
                 if f == 'NUC (Nuclear)':
                     f = 'Nuc'
                 elif f == 'NG (Natural Gas)':
                     f = 'NG'
                 elif f == 'BIT (Bituminous Coal)':
-                    f = 'NG'
+                    f = 'C'
                 elif f == 'SUN (Solar)':
                     f = 'S'
                 elif f == 'WAT (Water)':
                     f = 'H'
                 elif f == 'WND (Wind)':
                     f = 'W'
+                elif f == 'DFO (Distillate Fuel Oil)':
+                    f = 'O'
                     
-                corrected = corrected + '_' + f
+                corrected = corrected + '_' + f + '_' + bn
                 names_hr[i] = corrected
             
             df_gens['PlantNames'] = names
@@ -623,7 +632,8 @@ for NN in NODE_NUMBER:
                         c = sum(sample.loc[sample['PlantNames']==s,'MWMax'].values)
                         hr = np.nanmean(sample.loc[sample['PlantNames']==s,'Heat Rate MBTU/MWh'].values)
                         if hr == np.nan or hr == 0 or hr == 'nan' or hr == '':
-                            hr = np.nanmean(sample_hr.loc[sample_hr['PlantNames']==s,'Heat Rate MBTU/MWh'].values)
+                            # print(n)
+                            hr = np.nanmean(df_gens.loc[df_gens['FuelType']==fuel[0],'Heat Rate MBTU/MWh'].values)
                         else:
                             pass
                         mn = sum(sample.loc[sample['PlantNames']==s,'MWMin'].values)

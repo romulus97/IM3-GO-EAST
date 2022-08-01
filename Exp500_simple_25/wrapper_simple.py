@@ -17,12 +17,12 @@ from datetime import datetime
 import pyomo.environ as pyo
 from pyomo.environ import value
 
-days = 2 # Max = 365
+days = 365 # Max = 365
 
 instance = m1.create_instance('EIC_data.dat')
 instance.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT)
 
-Solvername = 'cplex'
+Solvername = 'gurobi'
 Timelimit = 3600 # for the simulation of one day in seconds
 # Threadlimit = 8 # maximum number of threads to use
 
