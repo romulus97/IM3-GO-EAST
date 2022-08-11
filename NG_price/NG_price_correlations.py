@@ -11,8 +11,18 @@ import matplotlib.pyplot as plt
 from scipy import stats
 from sklearn.linear_model import LinearRegression
 
-df = pd.read_excel('ice_natgas-2017final.xlsx',header=0)
-hubs = list(df['Price hub'].unique())
+df1 = pd.read_excel('ice_natgas-2015final.xlsx',header=0)
+df2 = pd.read_excel('ice_natgas-2016final.xlsx',header=0)
+df3 = pd.read_excel('ice_natgas-2017final.xlsx',header=0)
+
+frames = [df1,df2,df3]
+
+df = pd.concat(frames)
+df = df.reset_index(drop=True)
+df.drop_duplicates()
+
+df['Trade date'] = pd.to_datetime(df['Trade date'])
+df = df.set_index('Trade date')
 
 
 df_2019 = pd.read_excel('2019_hh.xlsx',header=0)
@@ -65,24 +75,42 @@ for h in EIC_hubs:
     reg = LinearRegression()
     
     y_v = df[df['Price hub']==h]
-    y_v = y_v.reset_index(drop=True)
-    dates = []
-    d = y_v['Trade date']
-    d = d.reset_index(drop=True)
-    y = np.zeros((len(d),1))
-    for i in range(0,len(d)):
-        dates.append(str(d[i]))
-        y[i,0] = y_v.loc[i,'High price $/MMBtu']
-
+    d_list = list(y_v.index.unique())
+    
     H = df.loc[df['Price hub']=='Henry']
-    H = H.reset_index(drop=True)
-    X = np.zeros((len(dates),1))
-    count = 0
-    for i in range(0,len(H)):
-        if str(H.loc[i,'Trade date']) in dates:
-            X[count,0] = float(df.loc[i,'High price $/MMBtu'])
-            count+=1
+    hh_d_list = list(H.index.unique())
+    
+    common = set(d_list).intersection(hh_d_list)
+    
+    y = y_v.loc[common,'High price $/MMBtu']   
+    # y = y.sort_index()
+    
+    y_f = []
+    for i in common:
+        a = y.loc[i]
+        y_f.append(a)
+
+    X = H.loc[common,'High price $/MMBtu']
+    # X = X.sort_index()
+    
+    X_f = []
+    for i in common:
+        a = X.loc[i]
+        X_f.append(a)
+        
+    combined = pd.DataFrame()
+    combined['X'] = X_f
+    combined['y'] = y_f
+    combined['Trade date'] = list(common)
+    combined['Trade date'] = pd.to_datetime(combined['Trade date'])
+    combined = combined.sort_values(by='Trade date')
             
+    X = combined['X'].values
+    y = combined['y'].values
+    
+    X = np.reshape(X,(len(X),1))
+    y = np.reshape(y,(len(y),1))
+    
     plt.figure()
     plt.plot(X)
     plt.plot(y)
@@ -94,6 +122,7 @@ for h in EIC_hubs:
     # Predict 2019 data
     X_new = np.array(df_2019['Price'])
     X_new = X_new.reshape(len(X_new),1)
+    X_new = X_new[:-1]
     
     predicted = []
     
