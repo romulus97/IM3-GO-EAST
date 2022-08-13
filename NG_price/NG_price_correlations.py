@@ -127,6 +127,9 @@ for h in EIC_hubs:
     predicted = []
     
     for i in range(0,len(X_new)):
+        if np.isnan(X_new[i]):
+            X_new[i] = X_new[i-1]
+        
         y_hat = reg.intercept_ + reg.coef_[0]*X_new[i]
         predicted.append(y_hat[0])
         

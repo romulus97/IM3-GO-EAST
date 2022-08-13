@@ -97,6 +97,9 @@ for BA_name in BAs_without_NG_data_name:
         BA_NG_coeff_matrix_df.loc[BA_name,'PORTLAND GENERAL ELECTRIC COMPANY']+ \
         final_NG_prices.loc[:,'PUGET SOUND ENERGY']* \
         BA_NG_coeff_matrix_df.loc[BA_name,'PUGET SOUND ENERGY']
+        
+
+
             
 final_NG_prices.to_csv('Average_NG_prices_BAs.csv') 
     
