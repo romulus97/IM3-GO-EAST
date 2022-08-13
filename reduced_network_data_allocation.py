@@ -569,6 +569,7 @@ for NN in NODE_NUMBER:
                 corrected = re.sub(r'[^A-Z]',r'',n)
                 f = fts[i]
                 bn = bus_area[i]
+                bn = bn.replace(" ", "_")
                 if f == 'NUC (Nuclear)':
                     f = 'Nuc'
                 elif f == 'NG (Natural Gas)':
@@ -592,6 +593,8 @@ for NN in NODE_NUMBER:
                 corrected = re.sub(r'[^A-Z]',r'',n)
                 f = fts_hr[i]
                 bn = bus_area_hr[i]
+                bn = bn.replace(" ", "_")
+                
                 if f == 'NUC (Nuclear)':
                     f = 'Nuc'
                 elif f == 'NG (Natural Gas)':
