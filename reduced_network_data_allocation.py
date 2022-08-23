@@ -40,8 +40,8 @@ NODE_NUMBER = [500]
 # UC_TREATMENTS = ['_simple','_coal']
 UC_TREATMENTS = ['_simple']
 
-# trans_p = [25,50,75,100]
-trans_p = [25]
+trans_p = [25,50,75,100]
+# trans_p = [25]
 
 for NN in NODE_NUMBER:
     
