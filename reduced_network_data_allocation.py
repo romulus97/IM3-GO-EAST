@@ -40,7 +40,7 @@ NODE_NUMBER = [500]
 # UC_TREATMENTS = ['_simple','_coal']
 UC_TREATMENTS = ['_simple']
 
-trans_p = [25,50,75,100]
+trans_p = [25, 50 ,75 ,100]
 # trans_p = [25]
 
 for NN in NODE_NUMBER:
@@ -1304,9 +1304,77 @@ for NN in NODE_NUMBER:
             
             Coal_prices_all.columns = Fuel_buses
             
-            Oil_prices = np.reshape(np.ones((365,1))*20,(365,))
-            Oil_prices_all = pd.DataFrame()
-            Oil_prices_all['all'] = Oil_prices
+            
+            # Oil prices
+            Oil_price = pd.read_excel('NG_Bias_Correction/Monthly_fuel_prices/2019_Fuel_Price_Data.xlsx',sheet_name='BA_oil', header=0)
+            C = list(Oil_price.columns)
+            
+            BA_names = list(df_BAs['Name'])
+            BA_abbs = list(df_BAs['Abbreviation'])
+            
+            for c in C:
+                if c in BA_abbs:
+                    pass
+                else:
+                    del Oil_price[c]
+                          
+            
+            # Convert to daily oil prices
+            S = np.shape(Oil_price)
+            M = np.zeros((365,S[1]))
+            C = list(Oil_price.columns)
+            
+            for j in C:
+                c = C.index(j)
+                M[0:31,c] = Oil_price.loc[0,j]
+                M[31:59,c] = Oil_price.loc[1,j]
+                M[59:80,c] = Oil_price.loc[2,j]
+                M[80:120,c] = Oil_price.loc[3,j]
+                M[120:151,c] = Oil_price.loc[4,j]
+                M[151:181,c] = Oil_price.loc[5,j]
+                M[181:211,c] = Oil_price.loc[6,j]
+                M[211:242,c] = Oil_price.loc[7,j]
+                M[242:272,c] = Oil_price.loc[8,j]
+                M[272:304,c] = Oil_price.loc[9,j]
+                M[304:334,c] = Oil_price.loc[10,j]
+                M[334:365,c] = Oil_price.loc[11,j]
+            
+            Oil_price = pd.DataFrame(M)
+            
+            #columns
+            new_C = []
+            for c in C:
+                if c in list(df_BAs['Abbreviation']):
+                    n = df_BAs.loc[df_BAs['Abbreviation']==c,'Name'].values[0]
+                    new_C.append(n)                  
+                    
+            Oil_price.columns = new_C
+            
+            buses = list(df_selected['bus_i'])
+            for bus in buses:
+                
+                selected_node_BA = df_full.loc[df_full['Number']==bus,'NAME'].values[0]
+                selected_node_BA_idx = BA_names.index(selected_node_BA)
+                selected_node_BA_abbr = BA_abbs[selected_node_BA_idx]
+                
+                specific_node_Oil_price = Oil_price.loc[:,selected_node_BA].copy()
+                
+                
+                if buses.index(bus) == 0:
+                    Oil_prices_all = specific_node_Oil_price.copy()
+                else:
+                    Oil_prices_all = pd.concat([Oil_prices_all,specific_node_Oil_price], axis=1)
+            
+            Fuel_buses = []
+            for i in range(0,len(buses)):
+                Fuel_buses.append('bus_' + str(buses[i]))
+            
+            Oil_prices_all.columns = Fuel_buses
+            
+            
+            # Oil_prices = np.reshape(np.ones((365,1))*20,(365,))
+            # Oil_prices_all = pd.DataFrame()
+            # Oil_prices_all['all'] = Oil_prices
             
             # getting generator based fuel prices
             
@@ -1320,7 +1388,7 @@ for NN in NODE_NUMBER:
                 elif row['typ'] == 'coal':
                     gen_fuel_price = Coal_prices_all.loc[:, row['node']].copy() 
                 elif row['typ'] == 'oil':
-                    gen_fuel_price = Oil_prices_all.loc[:,'all'].copy()
+                    gen_fuel_price = Oil_prices_all.loc[:,row['node']].copy()
                 else:
                     pass
                 

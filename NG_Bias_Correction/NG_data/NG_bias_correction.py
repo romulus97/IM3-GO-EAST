@@ -11,11 +11,11 @@ import pandas as pd
 years = [2019]
 
 #Reading and defining BAs
-BAs = pd.read_csv('../BA_data/BAs.csv',header=0)
+BAs = pd.read_csv('BAs.csv',header=0)
 BA_abss = list(BAs['Abbreviation'])
 BA_names = list(BAs['Name'])
 
-excluded_BAs = ['YAD','HST','CPLW','EEI','GRID','NSB','SEPA','NB','ERCOT']
+excluded_BAs = []
 for b in BA_abss:
     index = BA_abss.index(b)
     if b in excluded_BAs:
@@ -40,7 +40,7 @@ for year in years:
     EIA_BAs_NG = BA_NG_df.loc[:,BA_abss]
     
     #Defining BAs to exclude and BAs to include for bias correction
-    excluded_BAs = ['YAD','HST','CPLW','EEI','GRID','NSB','SEPA','NB']
+    excluded_BAs = []
     included_BAs = list(set(BA_abss) - set(excluded_BAs))
     
     #Bias correction by comparing monthly average and adjusting accordingly
